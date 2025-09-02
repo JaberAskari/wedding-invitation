@@ -1,4 +1,4 @@
-name: Deploy Wedding Invitation to AWS S3 (S3 Only)
+name: Deploy Wedding Invitation to AWS S3 with CloudFront
 
 on:
   push:
@@ -78,10 +78,16 @@ jobs:
           --content-type "image/x-icon" \
           --exclude "*" --include "*.ico"
 
+    - name: Invalidate CloudFront cache
+      run: |
+        echo "🔄 Invalidating CloudFront cache..."
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+          --paths "/*"
+
     - name: Display success message
       run: |
         echo "✅ Deployment completed successfully!"
         echo "🌟 Wedding invitation is live at: http://my-jbr.s3-website.eu-central-1.amazonaws.com"
-        echo "🎊 Changes have been deployed automatically!"
-        echo ""
-        echo "📝 Note: CloudFront cache invalidation skipped (requires additional permissions)"
+        echo "🎊 Changes have been deployed and cache invalidated!"
+        echo "🔄 CloudFront cache has been cleared - changes should be visible shortly!"
