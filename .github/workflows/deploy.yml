@@ -1,28 +1,99 @@
-name: Deploy to Server
+name: Deploy Wedding Invitation to AWS S3
 
 on:
   push:
-    branches:
-      - main
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          script: |
-            cd ~/Desktop/projects/wedding-card/wedding-invitation
-            git pull origin main
-            docker build -t wedding-invitation .
-            docker stop wedding-invitation || true
-            docker rm wedding-invitation || true
-            docker run -d -p 8080:80 --name wedding-invitation wedding-invitation
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-central-1
+
+    - name: Deploy to S3
+      run: |
+        echo "🎉 Deploying Marzieh & Jaber's Wedding Invitation..."
+        
+        # Sync files to S3
+        aws s3 sync . s3://my-jbr \
+          --exclude ".git/*" \
+          --exclude ".github/*" \
+          --exclude "*.md" \
+          --exclude "*.sh" \
+          --exclude "Dockerfile" \
+          --exclude ".DS_Store" \
+          --delete
+        
+        # Set proper content types
+        echo "🎯 Setting content types..."
+        
+        # HTML files
+        aws s3 cp s3://my-jbr/ s3://my-jbr/ --recursive \
+          --metadata-directive REPLACE \
+          --content-type "text/html" \
+          --exclude "*" --include "*.html"
+        
+        # CSS files
+        aws s3 cp s3://my-jbr/ s3://my-jbr/ --recursive \
+          --metadata-directive REPLACE \
+          --content-type "text/css" \
+          --exclude "*" --include "*.css"
+        
+        # JavaScript files
+        aws s3 cp s3://my-jbr/ s3://my-jbr/ --recursive \
+          --metadata-directive REPLACE \
+          --content-type "application/javascript" \
+          --exclude "*" --include "*.js"
+        
+        # Image files
+        aws s3 cp s3://my-jbr/ s3://my-jbr/ --recursive \
+          --metadata-directive REPLACE \
+          --content-type "image/jpeg" \
+          --exclude "*" --include "*.jpg" --include "*.jpeg"
+        
+        aws s3 cp s3://my-jbr/ s3://my-jbr/ --recursive \
+          --metadata-directive REPLACE \
+          --content-type "image/png" \
+          --exclude "*" --include "*.png"
+        
+        # Audio files
+        aws s3 cp s3://my-jbr/ s3://my-jbr/ --recursive \
+          --metadata-directive REPLACE \
+          --content-type "audio/mpeg" \
+          --exclude "*" --include "*.mp3"
+        
+        # Favicon
+        aws s3 cp s3://my-jbr/ s3://my-jbr/ --recursive \
+          --metadata-directive REPLACE \
+          --content-type "image/x-icon" \
+          --exclude "*" --include "*.ico"
+
+    - name: Invalidate CloudFront (if exists)
+      run: |
+        # Check if CloudFront distribution exists and invalidate cache
+        DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, 'my-jbr')].Id" --output text)
+        
+        if [ ! -z "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
+          echo "🔄 Invalidating CloudFront cache for distribution: $DISTRIBUTION_ID"
+          aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
+          echo "✅ CloudFront cache invalidated"
+        else
+          echo "ℹ️ No CloudFront distribution found, skipping cache invalidation"
+        fi
+
+    - name: Display success message
+      run: |
+        echo "✅ Deployment completed successfully!"
+        echo "🌟 Wedding invitation is live at: http://my-jbr.s3-website.eu-central-1.amazonaws.com"
+        echo "🎊 Changes have been deployed automatically!"
