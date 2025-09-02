@@ -1,10 +1,9 @@
-name: Deploy Wedding Invitation to AWS S3
+name: Deploy Wedding Invitation to AWS S3 (S3 Only)
 
 on:
   push:
     branches: [ master, main ]
-  pull_request:
-    branches: [ master, main ]
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   deploy:
@@ -79,28 +78,10 @@ jobs:
           --content-type "image/x-icon" \
           --exclude "*" --include "*.ico"
 
-    - name: Invalidate CloudFront (if exists and permitted)
-      run: |
-        # Check if CloudFront distribution exists and invalidate cache
-        # This step is optional and will skip if no CloudFront permissions
-        echo "🔍 Checking for CloudFront distributions..."
-        
-        # Try to list distributions, but don't fail if no permissions
-        if DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?contains(Origins.Items[0].DomainName, 'my-jbr')].Id" --output text 2>/dev/null); then
-          if [ ! -z "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
-            echo "🔄 Invalidating CloudFront cache for distribution: $DISTRIBUTION_ID"
-            aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
-            echo "✅ CloudFront cache invalidated"
-          else
-            echo "ℹ️ No CloudFront distribution found for this S3 bucket"
-          fi
-        else
-          echo "ℹ️ CloudFront permissions not available or not configured - skipping cache invalidation"
-          echo "💡 This is normal if you haven't set up CloudFront yet or don't have CloudFront permissions"
-        fi
-
     - name: Display success message
       run: |
         echo "✅ Deployment completed successfully!"
         echo "🌟 Wedding invitation is live at: http://my-jbr.s3-website.eu-central-1.amazonaws.com"
         echo "🎊 Changes have been deployed automatically!"
+        echo ""
+        echo "📝 Note: CloudFront cache invalidation skipped (requires additional permissions)"

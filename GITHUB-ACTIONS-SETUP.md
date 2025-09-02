@@ -100,13 +100,42 @@ The deployment runs automatically when you:
    - Verify secrets are correctly added in GitHub
    - Check that AWS access key has S3 permissions
 
-2. **Website not updating**:
+2. **CloudFront permissions error** (AccessDenied for cloudfront:ListDistributions):
+   - This is normal if your AWS user doesn't have CloudFront permissions
+   - The workflow will skip CloudFront cache invalidation and continue
+   - **Solution options:**
+     - **Option A**: Add CloudFront permissions to your AWS user (recommended)
+     - **Option B**: Use the S3-only workflow (see below)
+     - **Option C**: Ignore the error - deployment still works
+
+3. **Website not updating**:
    - Check the Actions tab for any error messages
    - Ensure you're pushing to the correct branch (`master`)
 
-3. **Images/styles not loading**:
+4. **Images/styles not loading**:
    - The workflow sets proper content types automatically
    - If issues persist, check S3 bucket permissions
+
+### AWS Permissions Required:
+
+**Minimum (S3 only):**
+- `s3:PutObject`
+- `s3:PutObjectAcl`
+- `s3:GetObject`
+- `s3:DeleteObject`
+- `s3:ListBucket`
+
+**Full (with CloudFront):**
+- All S3 permissions above
+- `cloudfront:ListDistributions`
+- `cloudfront:CreateInvalidation`
+
+### Alternative S3-Only Workflow:
+
+If you get CloudFront permission errors, you can use the S3-only workflow:
+1. Go to Actions tab in GitHub
+2. Disable the main workflow
+3. Use `.github/workflows/deploy-s3-only.yml` instead
 
 ### Useful Commands:
 
